@@ -1,0 +1,3 @@
+[submodule "fliclib-linux-hci"]
+	path = fliclib-linux-hci
+	url = https://github.com/50ButtonsEach/fliclib-linux-hci.git

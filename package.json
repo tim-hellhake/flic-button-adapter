@@ -1,0 +1,41 @@
+{
+  "name": "flic-button-adapter",
+  "display_name": "Flic Button",
+  "version": "0.0.0",
+  "description": "React to flic! button presses with the Mozilla IoT gateway",
+  "main": "adapter.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freaktechnik/flic-button-adapter.git"
+  },
+  "keywords": [
+    "mozilla",
+    "iot",
+    "flic"
+  ],
+  "author": "Martin Giger",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/freaktechnik/flic-button-adapter/issues"
+  },
+  "homepage": "https://github.com/freaktechnik/flic-button-adapter#readme",
+  "files": [
+    "adapter.js",
+    "LICENSE",
+    "fliclib-linux-hci/LICENSE (for the flicd binary).txt",
+    "fliclib-linux-hci/COPYING (for the documentation and source code).txt",
+    "fliclib-linux-hci/clientlib/nodejs/fliclibNodeJs.js",
+    "fliclib-linux-hci/bin/x86_64/flicd"
+  ],
+  "moziot": {
+    "api": {
+      "min": 1,
+      "max": 2
+    },
+    "plugin": true,
+    "exec": "{nodeLoader} {path}"
+  }
+}
