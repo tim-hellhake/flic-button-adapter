@@ -152,13 +152,7 @@ class FlicAdapter extends Adapter {
         }
 
         const binaryPath = FlicAdapter.getBinaryPath();
-        const args = [
-            binaryPath,
-            '-f=../flicdb.sqlite',
-            '-p ' + FlicAdapter.PORT,
-            '-w'
-        ];
-        this.flicd = childProcess.execFile('sudo', args, {
+        this.flicd = childProcess.exec(`sudo ${binaryPath} -f ../flicdb.sqlite -p ${FlicAdapter.PORT} -w`, {
             cwd: __dirname,
             env: process.env
         }, (e) => {
