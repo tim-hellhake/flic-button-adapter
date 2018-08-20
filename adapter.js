@@ -36,38 +36,64 @@ class ReadonlyProperty extends Property {
 
 class FlicButton extends Device {
     constructor(adapter, bdAddr, cc, client, name) {
-        super(adapter, bdAddr);
+        super(adapter, `flic-${bdAddr}`);
         if(name) {
             this.name = name;
         }
+        else {
+            this.name = `Flic button ${bdAddr}`;
+        }
+        this.bdAddr = bdAddr;
         this.cc = cc;
-        //this["@type"] = [ "MultiLevelSensor" ];
+        this["@type"] = [ "PushButton", "BinarySensor" ];
 
         this.properties.set('battery', new ReadonlyProperty(this, 'battery', {
             type: 'number',
             unit: 'percent'
-        }));
+        }, 100));
+        this.properties.set('pushed', new ReadonlyProperty(this, 'pushed', {
+            type: 'boolean',
+            '@type': 'PushedProperty'
+        }, false));
 
         this.addEvent('click', {
-            type: "string",
-            name: 'clickType'
+            type: "number",
+            label: 'clickCount'
+        });
+
+        this.addEvent('hold', {});
+
+        this.cc.on("buttonUpOrDown", (clickType) => {
+            const property = this.findProperty("pushed");
+            property.setCachedValue(clickType === "ButtonDown");
+            this.notifyPropertyChanged(property);
         });
 
         this.cc.on("buttonSingleOrDoubleClickOrHold", (clickType) => {
-            console.log(clickType);
-            this.eventNotify(new Event(this, 'click', clickType));
+            if(clickType === 'ButtonHold') {
+                this.eventNotify(new Event(this, 'hold'));
+            }
+            else {
+                this.eventNotify(new Event(this, 'click', clickType === 'ButtonDoubleClick' ? 2 : 1));
+            }
         });
 
         this.batteryStatusListener = new flic.FlicBatteryStatusListener(bdAddr);
         this.batteryStatusListener.on('batteryStatus', (percentage) => {
             const prop = this.findProperty('battery');
             prop.setCachedValue(percentage);
-            this.notifyPropertyChanged(property);
+            this.notifyPropertyChanged(prop);
         });
 
         this.adapter.client.addBatteryStatusListener(this.batteryStatusListener);
 
         this.adapter.handleDeviceAdded(this);
+    }
+
+    unload() {
+        this.cc.removeAllListeners("buttonUpOrDown")
+        this.adapter.client.removeConnectionChannel(this.cc);
+        this.adapter.client.removeBatteryStatusListener(this.batteryStatusListener);
     }
 }
 
@@ -103,6 +129,8 @@ class FlicAdapter extends Adapter {
         super(addonManager, 'FlicButtonAdapter', packageName);
         addonManager.addAdapter(this);
 
+        this.connecting = new Set();
+
         this.startDaemon();
         if(this.flicd) {
             this.client = new flic.FlicClient("localhost", FlicAdapter.PORT);
@@ -110,7 +138,7 @@ class FlicAdapter extends Adapter {
             this.client.once("ready", () => {
                 this.client.getInfo((info) => {
                     for(const bdAddr of info.bdAddrOfVerifiedButtons) {
-                        this.addDevice(bdAddr);
+                        this.addDevice(bdAddr, undefined, false);
                     }
                 });
             });
@@ -125,15 +153,14 @@ class FlicAdapter extends Adapter {
 
         const binaryPath = FlicAdapter.getBinaryPath();
         const args = [
-            '-f=flicdb.sqlite',
+            binaryPath,
+            '-f=../flicdb.sqlite',
             '-p ' + FlicAdapter.PORT,
             '-w'
         ];
-        this.flicd = childProcess.execFile(binaryPath, args, {
+        this.flicd = childProcess.execFile('sudo', args, {
             cwd: __dirname,
-            env: process.env,
-            uid: 0,
-            gid: 0
+            env: process.env
         }, (e) => {
             this.flicd = undefined;
             console.error(e);
@@ -142,51 +169,71 @@ class FlicAdapter extends Adapter {
         this.hasDaemon = true;
     }
 
-    async addDevice(bdAddr, name) {
+    async addDevice(bdAddr, name, tryToConnect = true) {
+        if(`flic-${bdAddr}` in this.devices || this.connecting.has(bdAddr)) {
+            return;
+        }
         const cc = new flic.FlicConnectionChannel(bdAddr);
-        let timeout;
-        const p = new Promise((resolve, reject) => {
-            cc.on("createResponse", function(error, connectionStatus) {
-                if(connectionStatus == "Ready") {
-                    // Got verified by someone else between scan result and this event
-                    resolve(cc);
-                }
-                else if(error != "NoError") {
-                    reject("Too many pending connections");
-                }
-                else {
-                    console.log("Found a public button. Now connecting...");
-                    timeout = setTimeout(function() {
-                        client.removeConnectionChannel(cc);
-                    }, 30 * 1000);
-                }
+        if(tryToConnect) {
+            let timeout;
+            this.connecting.add(bdAddr);
+            const p = new Promise((resolve, reject) => {
+                cc.on("createResponse", function(error, connectionStatus) {
+                    if(connectionStatus == "Ready") {
+                        // Got verified by someone else between scan result and this event
+                        resolve(cc);
+                    }
+                    else if(error != "NoError") {
+                        reject("Too many pending connections");
+                    }
+                    else {
+                        timeout = setTimeout(function() {
+                            this.client.removeConnectionChannel(cc);
+                        }, 30 * 1000);
+                    }
+                });
+                cc.on("connectionStatusChanged", function(connectionStatus, disconnectReason) {
+                    if (connectionStatus == "Ready") {
+                        resolve(cc);
+                    }
+                });
+                cc.on("removed", function(removedReason) {
+                    if (removedReason == "RemovedByThisClient") {
+                        reject("Timed out");
+                    }
+                    else {
+                        reject(removedReason);
+                    }
+                });
             });
-            cc.on("connectionStatusChanged", function(connectionStatus, disconnectReason) {
-                if (connectionStatus == "Ready") {
-                    resolve(cc);
+            try {
+                this.client.addConnectionChannel(cc);
+                await p;
+            }
+            catch(e) {
+                console.error(e);
+                this.client.removeConnectionChannel(cc);
+            }
+            finally {
+                if(timeout) {
+                    clearTimeout(timeout);
                 }
-            });
-            cc.on("removed", function(removedReason) {
-                if (removedReason == "RemovedByThisClient") {
-                    reject("Timed out");
-                }
-                else {
-                    reject(removedReason);
-                }
-            });
-        });
-        try {
-            const cc = await p;
-        }
-        catch(e) {
-            console.error(e);
-        }
-        finally {
-            if(timeout) {
-                clearTimeout(timeout);
+                cc.removeAllListeners('createResponse');
+                cc.removeAllListeners('connectionStatusChanged');
+                cc.removeAllListeners('removed');
+                this.connecting.delete(bdAddr);
             }
         }
+        else {
+            this.client.addConnectionChannel(cc);
+        }
         new FlicButton(this, bdAddr, cc, name);
+    }
+
+    removeThing(thing) {
+        thing.unload();
+        this.client.deleteButton(thing.bdAddr);
+        super.removeThing(thing);
     }
 
     startPairing(timeoutSeconds) {
@@ -197,7 +244,7 @@ class FlicAdapter extends Adapter {
 
             this.scanner.on("advertisementPacket", (bdAddr, name, rssi, isPrivate, alreadyVerified) => {
                 if (isPrivate) {
-                    console.log("Your button", name, "is private. Hold down for 7 seconds to make it public.");
+                    console.warn("Your button", name, "is private. Hold down for 7 seconds to make it public.");
                     return;
                 }
                 this.addDevice(bdAddr, name);
@@ -210,6 +257,7 @@ class FlicAdapter extends Adapter {
         this.client.removeScanner(this.scanner);
         clearTimeout(this.timeout);
         this.timeout = undefined;
+        this.connecting.clear();
     }
 
     unload() {
