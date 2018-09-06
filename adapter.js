@@ -89,7 +89,7 @@ class FlicButton extends Device {
     }
 }
 
-class FlicAdapter extends Adapter {
+class FlicButtonAdapter extends Adapter {
     static get PORT() {
         return 5551;
     }
@@ -126,40 +126,73 @@ class FlicAdapter extends Adapter {
     }
 
     constructor(addonManager, packageName, config) {
-        super(addonManager, 'FlicButtonAdapter', packageName);
+        super(addonManager, packageName, packageName);
         addonManager.addAdapter(this);
 
         this.connecting = new Set();
 
-        this.startDaemon();
+        this.startDaemon(config.device);
 
-        this.client = new flic.FlicClient("localhost", FlicAdapter.PORT);
-        this.client.once("ready", () => {
-            this.client.getInfo((info) => {
-                for(const bdAddr of info.bdAddrOfVerifiedButtons) {
-                    this.addDevice(bdAddr, undefined, false);
-                }
+        this.flicdReady.then(() => {
+            this.client = new flic.FlicClient("localhost", FlicButtonAdapter.PORT);
+            this.client.once("ready", () => {
+                this.client.getInfo((info) => {
+                    for(const bdAddr of info.bdAddrOfVerifiedButtons) {
+                        this.addDevice(bdAddr, undefined, false);
+                    }
+                });
             });
         });
     }
 
-    startDaemon() {
-        if(process.platform !== 'linux') {
+    startDaemon(device) {
+        if (process.platform !== 'linux') {
             console.warn("You have to manually start the flic daemon");
+            this.flicdReady = Promise.resolve();
             return;
         }
 
-        const binaryPath = FlicAdapter.getBinaryPath();
-        const dbPath = path.join(FlicAdapter.getConfigDirectory(), 'flicdb.sqlite');
-        this.flicd = childProcess.exec(`sudo ${binaryPath} -f "${dbPath}" -p ${FlicAdapter.PORT} -w`, {
-            cwd: __dirname,
-            env: process.env
-        }, (e) => {
+        const binaryPath = FlicButtonAdapter.getBinaryPath();
+        const dbPath = path.join(FlicButtonAdapter.getConfigDirectory(), 'flicdb.sqlite');
+        this.flicd = childProcess.spawn(
+            'sudo',
+            [
+                binaryPath,
+                '-f',
+                dbPath,
+                '-p',
+                FlicButtonAdapter.PORT,
+                '-w',
+                '-h',
+                device,
+            ],
+            {
+                cwd: __dirname,
+                env: process.env,
+            });
+
+        if (this.flicd.error) {
             this.flicd = undefined;
-            console.error(e);
+            console.error(this.flicd.error);
             this.unload();
+        }
+
+        this.flicd.stdout.on('data', (data) => {
+            console.log(`flicd[stdout]: ${data}`);
         });
-        this.hasDaemon = true;
+
+        this.flicdReady = new Promise((resolve) => {
+            this.flicd.stderr.on('data', (data) => {
+                console.log(`flicd[stderr]: ${data}`);
+                if (data.indexOf('Flic server is now up and running') > -1) {
+                    resolve();
+                }
+            });
+        });
+
+        this.flicd.on('close', (code) => {
+            console.log(`flicd: exited with status ${code}`);
+        });
     }
 
     async addDevice(bdAddr, name, tryToConnect = true) {
@@ -230,6 +263,11 @@ class FlicAdapter extends Adapter {
     }
 
     startPairing(timeoutSeconds) {
+        if (!this.client) {
+            console.log('Client not yet ready.');
+            return;
+        }
+
         if(!this.timeout) {
             this.scanner = new flic.FlicScanner();
 
@@ -254,16 +292,20 @@ class FlicAdapter extends Adapter {
     }
 
     unload() {
-        if(this.client) {
+        if (this.client) {
+            console.log('Disconnecting client');
             this.client.close();
         }
-        if(this.flicd) {
+
+        if (this.flicd) {
+            console.log('Killing flicd');
             this.flicd.kill();
         }
-        super.unload();
+
+        return super.unload();
     }
 }
 
 module.exports = (addonManager, manifest) => {
-    const adapter = new FlicAdapter(addonManager, manifest.name);
+    const adapter = new FlicButtonAdapter(addonManager, manifest.name, manifest.moziot.config);
 };

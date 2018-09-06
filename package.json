@@ -38,6 +38,20 @@
       "max": 2
     },
     "plugin": true,
-    "exec": "{nodeLoader} {path}"
+    "exec": "{nodeLoader} {path}",
+    "config": {
+      "device": "hci1"
+    },
+    "schema": {
+      "type": "object",
+      "required": [
+        "device"
+      ],
+      "properties": {
+        "device": {
+          "type": "string"
+        }
+      }
+    }
   }
 }
