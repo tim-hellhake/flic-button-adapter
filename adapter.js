@@ -1,27 +1,15 @@
-"use strict";
+'use strict';
 
-const path = require("path");
-const childProcess = require("child_process");
-const flic = require("./fliclib-linux-hci/clientlib/nodejs/fliclibNodeJs.js");
+const childProcess = require('child_process');
+const os = require('os');
+const path = require('path');
+const flic = require(path.join(__dirname,
+                               'fliclib-linux-hci',
+                               'clientlib',
+                               'nodejs',
+                               'fliclibNodeJs.js'));
 
-let Adapter, Device, Property, Event;
-try {
-    Adapter = require('../adapter');
-    Device = require('../device');
-    Property = require('../property');
-    Event = require('../event');
-}
-catch (e) {
-    if (e.code !== 'MODULE_NOT_FOUND') {
-        throw e;
-    }
-
-    const gwa = require('gateway-addon');
-    Adapter = gwa.Adapter;
-    Device = gwa.Device;
-    Property = gwa.Property;
-    Event = gwa.Event;
-}
+const {Adapter, Device, Property, Event} = require('gateway-addon');
 
 class ReadonlyProperty extends Property {
     constructor(device, name, description, value) {
@@ -45,23 +33,22 @@ class FlicButton extends Device {
         }
         this.bdAddr = bdAddr;
         this.cc = cc;
-        this["@type"] = [ "PushButton", "BinarySensor" ];
+        this['@type'] = ['PushButton'];
 
         this.properties.set('battery', new ReadonlyProperty(this, 'battery', {
             type: 'number',
-            unit: 'percent'
+            unit: 'percent',
+            label: 'Battery Level',
         }, 100));
         this.properties.set('pushed', new ReadonlyProperty(this, 'pushed', {
             type: 'boolean',
-            '@type': 'PushedProperty'
+            '@type': 'PushedProperty',
+            label: 'Pushed',
         }, false));
 
-        this.addEvent('click', {
-            type: "number",
-            label: 'clickCount'
-        });
-
         this.addEvent('hold', {});
+        this.addEvent('doubleClick', {});
+        this.addEvent('singleClick', {});
 
         this.cc.on("buttonUpOrDown", (clickType) => {
             const property = this.findProperty("pushed");
@@ -70,11 +57,16 @@ class FlicButton extends Device {
         });
 
         this.cc.on("buttonSingleOrDoubleClickOrHold", (clickType) => {
-            if(clickType === 'ButtonHold') {
-                this.eventNotify(new Event(this, 'hold'));
-            }
-            else {
-                this.eventNotify(new Event(this, 'click', clickType === 'ButtonDoubleClick' ? 2 : 1));
+            switch (clickType) {
+                case 'ButtonHold':
+                    this.eventNotify(new Event(this, 'hold'));
+                    break;
+                case 'ButtonDoubleClick':
+                    this.eventNotify(new Event(this, 'doubleClick'));
+                    break;
+                case 'ButtonSingleClick':
+                    this.eventNotify(new Event(this, 'singleClick'));
+                    break;
             }
         });
 
@@ -99,10 +91,18 @@ class FlicButton extends Device {
 
 class FlicAdapter extends Adapter {
     static get PORT() {
-        return "5551";
+        return 5551;
     }
 
-    static getBinaryFolder() {
+    static getConfigDirectory() {
+        if (process.env.hasOwnProperty('MOZIOT_HOME')) {
+            return path.join(process.env.MOZIOT_HOME, 'config');
+        }
+
+        return path.join(os.homedir(), '.mozilla-iot', 'config');
+    }
+
+    static getBinaryDirectory() {
         switch(process.arch) {
             case 'arm':
             case 'arm64':
@@ -121,8 +121,8 @@ class FlicAdapter extends Adapter {
         if(process.platform !== 'linux') {
             throw new Error("No binary bundled for this platform");
         }
-        const folder = this.getBinaryFolder();
-        return path.join(__dirname, 'fliclib-linux-hci', 'bin', folder, 'flicd');
+        const directory = this.getBinaryDirectory();
+        return path.join(__dirname, 'fliclib-linux-hci', 'bin', directory, 'flicd');
     }
 
     constructor(addonManager, packageName, config) {
@@ -132,17 +132,15 @@ class FlicAdapter extends Adapter {
         this.connecting = new Set();
 
         this.startDaemon();
-        if(this.flicd) {
-            this.client = new flic.FlicClient("localhost", FlicAdapter.PORT);
 
-            this.client.once("ready", () => {
-                this.client.getInfo((info) => {
-                    for(const bdAddr of info.bdAddrOfVerifiedButtons) {
-                        this.addDevice(bdAddr, undefined, false);
-                    }
-                });
+        this.client = new flic.FlicClient("localhost", FlicAdapter.PORT);
+        this.client.once("ready", () => {
+            this.client.getInfo((info) => {
+                for(const bdAddr of info.bdAddrOfVerifiedButtons) {
+                    this.addDevice(bdAddr, undefined, false);
+                }
             });
-        }
+        });
     }
 
     startDaemon() {
@@ -152,7 +150,8 @@ class FlicAdapter extends Adapter {
         }
 
         const binaryPath = FlicAdapter.getBinaryPath();
-        this.flicd = childProcess.exec(`sudo ${binaryPath} -f ../flicdb.sqlite -p ${FlicAdapter.PORT} -w`, {
+        const dbPath = path.join(FlicAdapter.getConfigDirectory(), 'flicdb.sqlite');
+        this.flicd = childProcess.exec(`sudo ${binaryPath} -f "${dbPath}" -p ${FlicAdapter.PORT} -w`, {
             cwd: __dirname,
             env: process.env
         }, (e) => {
