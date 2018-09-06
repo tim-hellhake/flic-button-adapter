@@ -1,4 +1,3 @@
-node_modules
-SHA256SUMS
+/package/
 *.tgz
 *.sqlite
