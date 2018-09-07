@@ -155,13 +155,6 @@ class FlicButtonAdapter extends Adapter {
         const binaryPath = FlicButtonAdapter.getBinaryPath();
         const dbPath = path.join(FlicButtonAdapter.getConfigDirectory(), 'flicdb.sqlite');
 
-        childProcess.spawnSync('sudo', [
-            'hciconfig',
-            device,
-            'down'
-        ]);
-        this.hciDevice = device;
-
         this.flicd = childProcess.spawn(
             'sudo',
             [
@@ -201,11 +194,6 @@ class FlicButtonAdapter extends Adapter {
 
         this.flicd.on('exit', (code) => {
             console.log(`flicd: exited with status ${code}`);
-            childProcess.spawnSync('sudo', [
-                'hciconfig',
-                device,
-                'up'
-            ]);
             this.unload();
         });
     }
@@ -329,12 +317,6 @@ class FlicButtonAdapter extends Adapter {
                     this.flicd.pid
                 ]);
             });
-
-            childProcess.spawnSync('sudo', [
-                'hciconfig',
-                this.hciDevice,
-                'up'
-            ]);
         }
 
         return super.unload();
