@@ -157,6 +157,7 @@ class FlicButtonAdapter extends Adapter {
         this.flicd = childProcess.spawn(
             'sudo',
             [
+                '-n', // we can't have any interaction for this.
                 binaryPath,
                 '-f',
                 dbPath,
@@ -263,7 +264,7 @@ class FlicButtonAdapter extends Adapter {
     }
 
     startPairing(timeoutSeconds) {
-        if (!this.client) {
+        if(!this.client) {
             console.log('Client not yet ready.');
             return;
         }
@@ -291,15 +292,29 @@ class FlicButtonAdapter extends Adapter {
         this.connecting.clear();
     }
 
-    unload() {
-        if (this.client) {
+    async unload() {
+        if(this.client) {
             console.log('Disconnecting client');
             this.client.close();
         }
 
-        if (this.flicd) {
+        if(this.flicd) {
             console.log('Killing flicd');
-            this.flicd.kill();
+            await new Promise((resolve, reject) => {
+                this.flicd.once('exit', resolve);
+                this.flicd.once('error', reject);
+                // We have to kill it with sudo because raspbian's SELinux makes
+                // the sudo be owned by root, so we can't kill it as normal user.
+                // Killing the child process of sudo, since somehow sudo doesn't
+                // want to be killed with child.
+                childProcess.spawnSync('sudo', [
+                    '-n',
+                    'pkill',
+                    '-9',
+                    '-P',
+                    this.flicd.pid
+                ]);
+            });
         }
 
         return super.unload();

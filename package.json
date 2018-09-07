@@ -2,7 +2,7 @@
   "name": "flic-button-adapter",
   "display_name": "Flic Button",
   "version": "0.0.1",
-  "description": "React to Flic button presses with the Mozilla IoT gateway. Click your button once to pair; if it doesn't blink, hold it for seven seconds to make it available.",
+  "description": "React to Flic button presses with the Mozilla IoT gateway. Requires a secondary bluetooth device by default. Click your button once to pair; if it doesn't blink, hold it for seven seconds to make it available.",
   "main": "adapter.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -47,9 +47,11 @@
       "required": [
         "device"
       ],
+      "title": "The flicd needs an exclusive Bluetooth adapter. It defaults to a plugged in secondary adapter due to that",
       "properties": {
         "device": {
-          "type": "string"
+          "type": "string",
+          "title": "Bluetooth Device Identifier"
         }
       }
     }
