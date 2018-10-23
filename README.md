@@ -5,7 +5,8 @@ Bridges the flic daemon to the gateway so it can interact with Flic buttons.
 
 ## Issues
 - Does not work if any other service or adapter sends commands on the same
-  bluetooth dongle/device, so you can not have the Thing URL adapter enabled.
+  bluetooth dongle/device, so you can not have the Thing URL adapter's bluetooth
+  enabled or the Homekit adapter enabled.
 - Only works out of the box on a Linux system without sudo password.
 
 ## Usage
