@@ -39,6 +39,7 @@ class FlicButton extends Device {
             type: 'number',
             unit: 'percent',
             label: 'Battery Level',
+            '@type': 'LevelProperty',
         }, 100));
         this.properties.set('pushed', new ReadonlyProperty(this, 'pushed', {
             type: 'boolean',
