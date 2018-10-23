@@ -46,9 +46,15 @@ class FlicButton extends Device {
             label: 'Pushed',
         }, false));
 
-        this.addEvent('hold', {});
-        this.addEvent('doubleClick', {});
-        this.addEvent('singleClick', {});
+        this.addEvent('hold', {
+            '@type': 'LongPressedEvent'
+        });
+        this.addEvent('doubleClick', {
+            '@type': 'DoublePressedEvent'
+        });
+        this.addEvent('singleClick', {
+            '@type': 'PressedEvent'
+        });
 
         this.cc.on("buttonUpOrDown", (clickType) => {
             const property = this.findProperty("pushed");
