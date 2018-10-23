@@ -40,7 +40,7 @@
     "plugin": true,
     "exec": "{nodeLoader} {path}",
     "config": {
-      "device": "hci1"
+      "device": "hci0"
     },
     "schema": {
       "type": "object",
