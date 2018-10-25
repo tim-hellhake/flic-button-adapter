@@ -11,14 +11,15 @@ const flic = require(path.join(__dirname,
 
 const {Adapter, Device, Property, Event} = require('gateway-addon');
 
-class ReadonlyProperty extends Property {
+class ReadOnlyProperty extends Property {
     constructor(device, name, description, value) {
         description.readOnly = true;
-        super(device, name, description, value);
+        super(device, name, description);
+        this.setCachedValue(value);
     }
 
     setValue(value) {
-        return Promise.reject("Read only property");
+        return Promise.reject("Read-only property");
     }
 }
 
@@ -35,13 +36,13 @@ class FlicButton extends Device {
         this.cc = cc;
         this['@type'] = ['PushButton'];
 
-        this.properties.set('battery', new ReadonlyProperty(this, 'battery', {
+        this.properties.set('battery', new ReadOnlyProperty(this, 'battery', {
             type: 'number',
             unit: 'percent',
             label: 'Battery Level',
             '@type': 'LevelProperty',
         }, 100));
-        this.properties.set('pushed', new ReadonlyProperty(this, 'pushed', {
+        this.properties.set('pushed', new ReadOnlyProperty(this, 'pushed', {
             type: 'boolean',
             '@type': 'PushedProperty',
             label: 'Pushed',
