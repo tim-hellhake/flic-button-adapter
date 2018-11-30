@@ -5,7 +5,8 @@
   "description": "React to Flic button presses with the Mozilla IoT gateway. Doesn't work with other adapters that use bluetooth (Thing URL with Bluetooth, Homekit). Click your button once to pair; if it doesn't blink, hold it for seven seconds to make it available.",
   "main": "adapter.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "./build.sh"
   },
   "repository": {
     "type": "git",
