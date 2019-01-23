@@ -26,8 +26,6 @@
   "files": [
     "LICENSE",
     "SHA256SUMS",
-    "fliclib-linux-hci/LICENSE (for the flicd binary).txt",
-    "fliclib-linux-hci/COPYING (for the documentation and source code).txt",
     "fliclib-linux-hci/clientlib/nodejs/fliclibNodeJs.js",
     "fliclib-linux-hci/bin/armv6l/flicd",
     "fliclib-linux-hci/bin/i386/flicd",
