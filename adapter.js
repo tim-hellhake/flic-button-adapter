@@ -39,23 +39,26 @@ class FlicButton extends Device {
         this.properties.set('battery', new ReadOnlyProperty(this, 'battery', {
             type: 'number',
             unit: 'percent',
-            label: 'Battery Level',
+            title: 'Battery Level',
             '@type': 'LevelProperty',
         }, 100));
         this.properties.set('pushed', new ReadOnlyProperty(this, 'pushed', {
             type: 'boolean',
             '@type': 'PushedProperty',
-            label: 'Pushed',
+            title: 'Pushed',
         }, false));
 
         this.addEvent('hold', {
-            '@type': 'LongPressedEvent'
+            '@type': 'LongPressedEvent',
+            title: 'Hold'
         });
         this.addEvent('doubleClick', {
-            '@type': 'DoublePressedEvent'
+            '@type': 'DoublePressedEvent',
+            title: 'Double click'
         });
         this.addEvent('singleClick', {
-            '@type': 'PressedEvent'
+            '@type': 'PressedEvent',
+            title: 'Single click'
         });
 
         this.cc.on("buttonUpOrDown", (clickType) => {
