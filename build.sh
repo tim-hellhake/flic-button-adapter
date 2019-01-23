@@ -20,4 +20,5 @@ mkdir -p package/fliclib-linux-hci/clientlib/nodejs
 cp fliclib-linux-hci/clientlib/nodejs/fliclibNodeJs.js package/fliclib-linux-hci/clientlib/nodejs
 cp -r fliclib-linux-hci/bin package/fliclib-linux-hci
 tar czf ${TARFILE} package
+sha256sum ${TARFILE}
 echo "Created ${TARFILE}"
