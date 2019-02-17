@@ -142,7 +142,7 @@ class FlicButtonAdapter extends Adapter {
 
         this.connecting = new Set();
 
-        this.startDaemon(config.device);
+        this.startDaemon(config.device, config.startDaemon);
 
         this.flicdReady.then(() => {
             this.client = new flic.FlicClient("localhost", FlicButtonAdapter.PORT);
@@ -156,8 +156,8 @@ class FlicButtonAdapter extends Adapter {
         });
     }
 
-    startDaemon(device) {
-        if (process.platform !== 'linux') {
+    startDaemon(device, startDaemon = true) {
+        if (process.platform !== 'linux' || !startDaemon) {
             console.warn("You have to manually start the flic daemon");
             this.flicdReady = Promise.resolve();
             return;
@@ -204,6 +204,7 @@ class FlicButtonAdapter extends Adapter {
         });
 
         this.flicd.on('exit', (code) => {
+            this.flicd = undefined;
             console.log(`flicd: exited with status ${code}`);
             this.unload();
         });
@@ -287,11 +288,17 @@ class FlicButtonAdapter extends Adapter {
 
             this.timeout = setTimeout(() => this.cancelPairing(), timeoutSeconds * 1000);
 
+            const promptedDevices = new Set();
             this.scanner.on("advertisementPacket", (bdAddr, name, rssi, isPrivate, alreadyVerified) => {
                 if (isPrivate) {
-                    console.warn("Your button", name, "is private. Hold down for 7 seconds to make it public.");
+                    if(!promptedDevices.has(bdAddr)) {
+                        //TODO associate with device -> have dummy device that can't be paired
+                        this.sendPairingPrompt(`Your button ${name || bdAddr} is already paired. Hold it for 7 seconds to make it available for pairing.`);
+                        promptedDevices.add(bdAddr);
+                    }
                     return;
                 }
+                promptedDevices.delete(bdAddr);
                 this.addDevice(bdAddr, name);
             });
             this.client.addScanner(this.scanner);

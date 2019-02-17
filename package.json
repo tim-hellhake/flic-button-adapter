@@ -52,6 +52,11 @@
         "device": {
           "type": "string",
           "title": "Bluetooth Device Identifier"
+        },
+        "startDaemon": {
+          "type": "boolean",
+          "title": "Run bundled flicd",
+          "default": true
         }
       }
     }
