@@ -136,27 +136,41 @@ class FlicButtonAdapter extends Adapter {
         return path.join(__dirname, 'fliclib-linux-hci', 'bin', directory, 'flicd');
     }
 
-    constructor(addonManager, packageName, config) {
+    constructor(addonManager, packageName, config, reportError) {
         super(addonManager, packageName, packageName);
-        addonManager.addAdapter(this);
+        this.ready = false;
 
         this.connecting = new Set();
 
-        this.startDaemon(config.device, config.startDaemon);
+        this.startDaemon(config.device, config.startDaemon, (e) => reportError(packageName, e));
 
         this.flicdReady.then(() => {
             this.client = new flic.FlicClient("localhost", FlicButtonAdapter.PORT);
+            this.client.once('error', (e) => {
+                console.error(e);
+                this.client.close();
+                this.client = undefined;
+                this.ready = false;
+                if(this.flicd) {
+                    reportError(packageName, "Error connecting to local flic daemon. Possibly couldn't bind to its port or the bluetooth device.");
+                }
+                else {
+                    reportError(packageName, `Could not connect to flic daemon. Please start it on port ${FlicButtonAdapter.PORT} and reload this add-on.`);
+                }
+            });
             this.client.once("ready", () => {
                 this.client.getInfo((info) => {
                     for(const bdAddr of info.bdAddrOfVerifiedButtons) {
                         this.addDevice(bdAddr, undefined, false);
                     }
                 });
+                addonManager.addAdapter(this);
+                this.ready = true;
             });
         });
     }
 
-    startDaemon(device, startDaemon = true) {
+    startDaemon(device, startDaemon = true, reportError) {
         if (process.platform !== 'linux' || !startDaemon) {
             console.warn("You have to manually start the flic daemon");
             this.flicdReady = Promise.resolve();
@@ -188,6 +202,7 @@ class FlicButtonAdapter extends Adapter {
             this.flicd = undefined;
             console.error(this.flicd.error);
             this.unload();
+            reportError("Could not start the flic daemon. Please check the logs.");
         }
 
         this.flicd.stdout.on('data', (data) => {
@@ -206,7 +221,11 @@ class FlicButtonAdapter extends Adapter {
         this.flicd.on('exit', (code) => {
             this.flicd = undefined;
             console.log(`flicd: exited with status ${code}`);
+            //TODO instead unset the client here and don't unload so it reports a pairingError
             this.unload();
+            if(!this.client) {
+                reportError("Could not start the flic daemon. Please check the logs.");
+            }
         });
     }
 
@@ -278,10 +297,10 @@ class FlicButtonAdapter extends Adapter {
     }
 
     startPairing(timeoutSeconds) {
-        if(!this.client) {
-            console.log('Client not yet ready.');
-            return;
-        }
+        // if(!this.client) {
+        //     this.sendPairingPrompt("Flic daemon isn't running or an error occured with the connection. Please start a flic daemon and then reload the adapter.", "https://github.com/freaktechnik/flic-button-adapter#usage");
+        //     return;
+        // }
 
         if(!this.timeout) {
             this.scanner = new flic.FlicScanner();
@@ -293,7 +312,8 @@ class FlicButtonAdapter extends Adapter {
                 if (isPrivate) {
                     if(!promptedDevices.has(bdAddr)) {
                         //TODO associate with device -> have dummy device that can't be paired
-                        this.sendPairingPrompt(`Your button ${name || bdAddr} is already paired. Hold it for 7 seconds to make it available for pairing.`);
+                        // this.sendPairingPrompt(`Your button ${name || bdAddr} is already paired. Hold it for 7 seconds to make it available for pairing.`);
+                        console.warn(name || bdAddr, "is already paired. Press the button 7 seconds to make it available for pairing.");
                         promptedDevices.add(bdAddr);
                     }
                     return;
@@ -306,7 +326,9 @@ class FlicButtonAdapter extends Adapter {
     }
 
     cancelPairing() {
-        this.client.removeScanner(this.scanner);
+        if(this.client) {
+            this.client.removeScanner(this.scanner);
+        }
         clearTimeout(this.timeout);
         this.timeout = undefined;
         this.connecting.clear();
@@ -341,6 +363,6 @@ class FlicButtonAdapter extends Adapter {
     }
 }
 
-module.exports = (addonManager, manifest) => {
-    const adapter = new FlicButtonAdapter(addonManager, manifest.name, manifest.moziot.config);
+module.exports = (addonManager, manifest, reportError) => {
+    const adapter = new FlicButtonAdapter(addonManager, manifest.name, manifest.moziot.config, reportError);
 };
