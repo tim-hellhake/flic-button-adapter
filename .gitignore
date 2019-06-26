@@ -1,3 +1,5 @@
-/package/
-*.tgz
 *.sqlite
+*.tgz
+/node_modules/
+/package-lock.json
+/package/

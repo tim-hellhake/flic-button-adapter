@@ -1,28 +1,32 @@
 {
   "name": "flic-button-adapter",
   "display_name": "Flic Button",
-  "version": "0.1.0",
-  "description": "React to Flic button presses with the Mozilla IoT gateway. Doesn't work with other adapters that use bluetooth (Thing URL with Bluetooth, Homekit). Click your button once to pair; if it doesn't blink, hold it for seven seconds to make it available.",
+  "version": "0.1.1",
+  "description": "React to Flic button presses with the Mozilla IoT gateway. Doesn't work with other adapters that use bluetooth (e.g. HomeKit). Click your button once to pair; if it doesn't blink, hold it for seven seconds to make it available.",
   "main": "adapter.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "./build.sh"
+    "lint": "eslint .",
+    "build": "./package.sh"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/freaktechnik/flic-button-adapter.git"
+    "url": "git+https://github.com/mrstegeman/flic-button-adapter.git"
   },
   "keywords": [
     "mozilla",
     "iot",
     "flic"
   ],
-  "author": "Martin Giger",
+  "author": "Michael Stegeman",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/freaktechnik/flic-button-adapter/issues"
+    "url": "https://github.com/mrstegeman/flic-button-adapter/issues"
   },
-  "homepage": "https://github.com/freaktechnik/flic-button-adapter#readme",
+  "homepage": "https://github.com/mrstegeman/flic-button-adapter#readme",
+  "devDependencies": {
+    "babel-eslint": "^10.0.2",
+    "eslint": "^6.0.1"
+  },
   "files": [
     "LICENSE",
     "SHA256SUMS",
@@ -47,7 +51,7 @@
       "required": [
         "device"
       ],
-      "title": "The flicd needs an exclusive Bluetooth adapter. Please disable bluetooth functionality of other adapters like the Thing URL adapter or the Homekit adapter.",
+      "title": "The flicd needs an exclusive Bluetooth adapter. Please disable bluetooth functionality of other adapters like the HomeKit adapter.",
       "properties": {
         "device": {
           "type": "string",
