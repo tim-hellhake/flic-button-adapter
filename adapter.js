@@ -1,15 +1,69 @@
 'use strict';
 
 const childProcess = require('child_process');
+const fs = require('fs');
+const manifest = require('./manifest.json');
+const mkdirp = require('mkdirp');
 const os = require('os');
 const path = require('path');
+
+const {
+  Adapter,
+  Database,
+  Device,
+  Event,
+  Property,
+} = require('gateway-addon');
+
 const flic = require(path.join(__dirname,
                                'fliclib-linux-hci',
                                'clientlib',
                                'nodejs',
                                'fliclibNodeJs.js'));
 
-const {Adapter, Device, Property, Event} = require('gateway-addon');
+function getDataPath() {
+  let profileDir;
+  if (process.env.hasOwnProperty('MOZIOT_HOME')) {
+    profileDir = process.env.MOZIOT_HOME;
+  } else {
+    profileDir = path.join(os.homedir(), '.mozilla-iot');
+  }
+
+  return path.join(profileDir, 'data', 'flic-button-adapter');
+}
+
+function getConfigPath() {
+  if (process.env.hasOwnProperty('MOZIOT_HOME')) {
+    return path.join(process.env.MOZIOT_HOME, 'config');
+  }
+
+  return path.join(os.homedir(), '.mozilla-iot', 'config');
+}
+
+function getBinaryPath() {
+  let directory;
+  switch (process.arch) {
+    case 'arm':
+    case 'arm64':
+      directory = 'armv6l';
+      break;
+    case 'ia32':
+    case 'x32':
+      directory = 'i386';
+      break;
+    case 'x64':
+      directory = 'x86_64';
+      break;
+    default:
+      throw new Error(`Platform ${process.arch} not supported`);
+  }
+
+  if (process.platform !== 'linux') {
+    throw new Error('No binary bundled for this platform');
+  }
+
+  return path.join(__dirname, 'fliclib-linux-hci', 'bin', directory, 'flicd');
+}
 
 class ReadOnlyProperty extends Property {
   constructor(device, name, description, value) {
@@ -104,81 +158,56 @@ class FlicButtonAdapter extends Adapter {
     return 5551;
   }
 
-  static getConfigDirectory() {
-    if (process.env.MOZIOT_HOME) {
-      return path.join(process.env.MOZIOT_HOME, 'config');
-    }
-
-    return path.join(os.homedir(), '.mozilla-iot', 'config');
-  }
-
-  static getBinaryDirectory() {
-    switch (process.arch) {
-      case 'arm':
-      case 'arm64':
-        return 'armv6l';
-      case 'ia32':
-      case 'x32':
-        return 'i386';
-      case 'x64':
-        return 'x86_64';
-      default:
-        throw new Error(`Platform ${process.arch} not supported`);
-    }
-  }
-
-  static getBinaryPath() {
-    if (process.platform !== 'linux') {
-      throw new Error('No binary bundled for this platform');
-    }
-    const directory = this.getBinaryDirectory();
-    return path.join(__dirname, 'fliclib-linux-hci', 'bin', directory, 'flicd');
-  }
-
-  constructor(addonManager, packageName, config, reportError) {
-    super(addonManager, packageName, packageName);
+  constructor(addonManager, reportError) {
+    super(addonManager, manifest.id, manifest.id);
     this.ready = false;
-
     this.connecting = new Set();
 
-    this.startDaemon(
-      config.device,
-      config.startDaemon,
-      (e) => reportError(packageName, e)
-    );
+    this.db = new Database(manifest.id);
+    this.db.open().then(() => {
+      return this.db.loadConfig();
+    }).then((config) => {
+      this.config = config;
 
-    this.flicdReady.then(() => {
-      this.client = new flic.FlicClient('localhost', FlicButtonAdapter.PORT);
-      this.client.once('error', (e) => {
-        console.error(e);
-        this.client.close();
-        delete this.client;
-        this.ready = false;
-        if (this.flicd) {
-          reportError(
-            packageName,
-            // eslint-disable-next-line max-len
-            'Error connecting to local flic daemon. Possibly couldn\'t bind to its port or the bluetooth device.'
-          );
-        } else {
-          reportError(
-            packageName,
-            // eslint-disable-next-line max-len
-            `Could not connect to flic daemon. Please start it on port ${FlicButtonAdapter.PORT} and reload this add-on.`
-          );
-        }
-      });
-      this.client.once('ready', () => {
-        this.client.getInfo((info) => {
-          for (const bdAddr of info.bdAddrOfVerifiedButtons) {
-            // eslint-disable-next-line no-undefined
-            this.addDevice(bdAddr, undefined, false);
+      this.startDaemon(
+        this.config.device,
+        this.config.startDaemon,
+        (e) => reportError(manifest.id, e)
+      );
+
+      this.flicdReady.then(() => {
+        this.client = new flic.FlicClient('localhost', FlicButtonAdapter.PORT);
+        this.client.once('error', (e) => {
+          console.error(e);
+          this.client.close();
+          delete this.client;
+          this.ready = false;
+          if (this.flicd) {
+            reportError(
+              manifest.id,
+              // eslint-disable-next-line max-len
+              'Error connecting to local flic daemon. Possibly couldn\'t bind to its port or the Bluetooth device.'
+            );
+          } else {
+            reportError(
+              manifest.id,
+              // eslint-disable-next-line max-len
+              `Could not connect to flic daemon. Please start it on port ${FlicButtonAdapter.PORT} and reload this add-on.`
+            );
           }
         });
-        addonManager.addAdapter(this);
-        this.ready = true;
+        this.client.once('ready', () => {
+          this.client.getInfo((info) => {
+            for (const bdAddr of info.bdAddrOfVerifiedButtons) {
+              // eslint-disable-next-line no-undefined
+              this.addDevice(bdAddr, undefined, false);
+            }
+          });
+          addonManager.addAdapter(this);
+          this.ready = true;
+        });
       });
-    });
+    }).catch(console.error);
   }
 
   startDaemon(device, startDaemon = true, reportError) {
@@ -188,9 +217,19 @@ class FlicButtonAdapter extends Adapter {
       return;
     }
 
-    const binaryPath = FlicButtonAdapter.getBinaryPath();
-    const dbPath =
-      path.join(FlicButtonAdapter.getConfigDirectory(), 'flicdb.sqlite');
+    const binaryPath = getBinaryPath();
+
+    const dataDir = getDataPath();
+    const dbPath = path.join(dataDir, 'flicdb.sqlite');
+    if (!fs.existsSync(dataDir)) {
+      mkdirp.sync(dataDir, {mode: 0o755});
+    }
+
+    // Move database, if necessary
+    const oldDbPath = path.join(getConfigPath(), 'flicdb.sqlite');
+    if (fs.existsSync(oldDbPath)) {
+      fs.renameSync(oldDbPath, dbPath);
+    }
 
     this.flicd = childProcess.spawn(
       'sudo',
@@ -304,17 +343,6 @@ class FlicButtonAdapter extends Adapter {
   }
 
   startPairing(timeoutSeconds) {
-    /*
-    if (!this.client) {
-      this.sendPairingPrompt(
-        // eslint-disable-next-line max-len
-        'Flic daemon isn\'t running or an error occured with the connection. Please start a flic daemon and then reload the adapter.',
-        'https://github.com/freaktechnik/flic-button-adapter#usage'
-      );
-      return;
-    }
-    */
-
     if (!this.timeout) {
       this.scanner = new flic.FlicScanner();
 
@@ -327,14 +355,6 @@ class FlicButtonAdapter extends Adapter {
         (bdAddr, name, rssi, isPrivate) => {
           if (isPrivate) {
             if (!promptedDevices.has(bdAddr)) {
-              // TODO: associate with device -> have dummy device that can't be
-              // paired
-              /*
-              this.sendPairingPrompt(
-                // eslint-disable-next-line max-len
-                `Your button ${name || bdAddr} is already paired. Hold it for 7 seconds to make it available for pairing.`
-              );
-              */
               console.warn(
                 name || bdAddr,
                 'is already paired. Press the button 7 seconds to make it',
@@ -390,11 +410,9 @@ class FlicButtonAdapter extends Adapter {
   }
 }
 
-module.exports = (addonManager, manifest, reportError) => {
+module.exports = (addonManager, _, reportError) => {
   new FlicButtonAdapter(
     addonManager,
-    manifest.name,
-    manifest.moziot.config,
     reportError
   );
 };

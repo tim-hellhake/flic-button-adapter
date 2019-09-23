@@ -1,7 +1,7 @@
 {
   "name": "flic-button-adapter",
   "display_name": "Flic Button",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "React to Flic button presses with the Mozilla IoT gateway. Doesn't work with other adapters that use bluetooth (e.g. HomeKit). Click your button once to pair; if it doesn't blink, hold it for seven seconds to make it available.",
   "main": "adapter.js",
   "scripts": {
@@ -24,17 +24,20 @@
   },
   "homepage": "https://github.com/mrstegeman/flic-button-adapter#readme",
   "devDependencies": {
-    "babel-eslint": "^10.0.2",
-    "eslint": "^6.0.1"
+    "babel-eslint": "^10.0.3",
+    "eslint": "^6.4.0"
   },
   "files": [
     "LICENSE",
+    "README.md",
     "SHA256SUMS",
     "adapter.js",
     "fliclib-linux-hci/clientlib/nodejs/fliclibNodeJs.js",
     "fliclib-linux-hci/bin/armv6l/flicd",
     "fliclib-linux-hci/bin/i386/flicd",
-    "fliclib-linux-hci/bin/x86_64/flicd"
+    "fliclib-linux-hci/bin/x86_64/flicd",
+    "manifest.json",
+    "node_modules"
   ],
   "moziot": {
     "api": {
@@ -64,5 +67,8 @@
         }
       }
     }
+  },
+  "dependencies": {
+    "mkdirp": "^0.5.1"
   }
 }

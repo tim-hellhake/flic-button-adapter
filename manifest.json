@@ -1,0 +1,42 @@
+{
+  "author": "Michael Stegeman",
+  "description": "React to Flic button presses. Doesn't work with other adapters that use Bluetooth (e.g. HomeKit). Click your button once to pair; if it doesn't blink, hold it for seven seconds to make it available.",
+  "gateway_specific_settings": {
+    "webthings": {
+      "exec": "{nodeLoader} {path}",
+      "primary_type": "adapter",
+      "strict_max_version": "*",
+      "strict_min_version": "0.10.0"
+    }
+  },
+  "homepage_url": "https://github.com/mrstegeman/flic-button-adapter#readme",
+  "id": "flic-button-adapter",
+  "license": "MIT",
+  "manifest_version": 1,
+  "name": "Flic Button",
+  "options": {
+    "default": {
+      "device": "hci0"
+    },
+    "schema": {
+      "type": "object",
+      "title": "The flicd needs an exclusive Bluetooth adapter. Please disable Bluetooth functionality of other adapters like the HomeKit adapter.",
+      "required": [
+        "device"
+      ],
+      "properties": {
+        "device": {
+          "title": "Bluetooth Device Identifier",
+          "type": "string"
+        },
+        "startDaemon": {
+          "default": true,
+          "title": "Run bundled flicd",
+          "type": "boolean"
+        }
+      }
+    }
+  },
+  "short_name": "Flic Button",
+  "version": "0.2.0"
+}
