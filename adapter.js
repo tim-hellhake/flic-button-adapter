@@ -357,7 +357,7 @@ class FlicButtonAdapter extends Adapter {
             if (!promptedDevices.has(bdAddr)) {
               console.warn(
                 name || bdAddr,
-                'is already paired. Press the button 7 seconds to make it',
+                'is already paired. Press the button 7 for seconds to make it',
                 'available for pairing.'
               );
               promptedDevices.add(bdAddr);
@@ -411,8 +411,5 @@ class FlicButtonAdapter extends Adapter {
 }
 
 module.exports = (addonManager, _, reportError) => {
-  new FlicButtonAdapter(
-    addonManager,
-    reportError
-  );
+  new FlicButtonAdapter(addonManager, reportError);
 };
