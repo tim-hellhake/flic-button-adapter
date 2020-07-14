@@ -171,7 +171,6 @@ class FlicButtonAdapter extends Adapter {
 
       this.startDaemon(
         this.config.device,
-        this.config.startDaemon,
         (e) => reportError(manifest.id, e)
       );
 
@@ -210,13 +209,7 @@ class FlicButtonAdapter extends Adapter {
     }).catch(console.error);
   }
 
-  startDaemon(device, startDaemon = true, reportError) {
-    if (process.platform !== 'linux' || !startDaemon) {
-      console.warn('You have to manually start the flic daemon');
-      this.flicdReady = Promise.resolve();
-      return;
-    }
-
+  startDaemon(device, reportError) {
     const binaryPath = getBinaryPath();
 
     const dataDir = getDataPath();

@@ -28,15 +28,10 @@
         "device": {
           "title": "Bluetooth Device Identifier",
           "type": "string"
-        },
-        "startDaemon": {
-          "default": true,
-          "title": "Run bundled flicd",
-          "type": "boolean"
         }
       }
     }
   },
   "short_name": "Flic Button",
-  "version": "0.3.0"
+  "version": "0.3.1"
 }
