@@ -41,28 +41,7 @@ function getConfigPath() {
 }
 
 function getBinaryPath() {
-  let directory;
-  switch (process.arch) {
-    case 'arm':
-    case 'arm64':
-      directory = 'armv6l';
-      break;
-    case 'ia32':
-    case 'x32':
-      directory = 'i386';
-      break;
-    case 'x64':
-      directory = 'x86_64';
-      break;
-    default:
-      throw new Error(`Platform ${process.arch} not supported`);
-  }
-
-  if (process.platform !== 'linux') {
-    throw new Error('No binary bundled for this platform');
-  }
-
-  return path.join(__dirname, 'fliclib-linux-hci', 'bin', directory, 'flicd');
+  return path.join(__dirname, 'fliclib-linux-hci', 'bin', 'flicd');
 }
 
 class ReadOnlyProperty extends Property {
