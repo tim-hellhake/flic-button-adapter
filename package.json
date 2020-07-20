@@ -11,12 +11,6 @@
     "type": "git",
     "url": "git+https://github.com/mrstegeman/flic-button-adapter.git"
   },
-  "keywords": [
-    "mozilla",
-    "webthings",
-    "adapter",
-    "flic"
-  ],
   "author": "Michael Stegeman",
   "license": "MIT",
   "bugs": {
