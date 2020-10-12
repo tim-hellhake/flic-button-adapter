@@ -21,7 +21,11 @@ const flic = require(path.join(__dirname,
                                'nodejs',
                                'fliclibNodeJs.js'));
 
-function getDataPath() {
+function getDataPath(dataDir) {
+  if (dataDir) {
+    return path.join(dataDir, 'flic-button-adapter');
+  }
+
   let profileDir;
   if (process.env.hasOwnProperty('MOZIOT_HOME')) {
     profileDir = process.env.MOZIOT_HOME;
@@ -32,7 +36,11 @@ function getDataPath() {
   return path.join(profileDir, 'data', 'flic-button-adapter');
 }
 
-function getConfigPath() {
+function getConfigPath(configDir) {
+  if (configDir) {
+    return configDir;
+  }
+
   if (process.env.hasOwnProperty('MOZIOT_HOME')) {
     return path.join(process.env.MOZIOT_HOME, 'config');
   }
@@ -191,14 +199,17 @@ class FlicButtonAdapter extends Adapter {
   startDaemon(device, reportError) {
     const binaryPath = getBinaryPath();
 
-    const dataDir = getDataPath();
+    const dataDir = getDataPath(this.userProfile.dataDir);
     const dbPath = path.join(dataDir, 'flicdb.sqlite');
     if (!fs.existsSync(dataDir)) {
       mkdirp.sync(dataDir, {mode: 0o755});
     }
 
     // Move database, if necessary
-    const oldDbPath = path.join(getConfigPath(), 'flicdb.sqlite');
+    const oldDbPath = path.join(
+      getConfigPath(this.userProfile.configDir),
+      'flicdb.sqlite'
+    );
     if (fs.existsSync(oldDbPath)) {
       fs.renameSync(oldDbPath, dbPath);
     }

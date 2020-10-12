@@ -1,5 +1,5 @@
 # flic-button-adapter
-Flic button adapter for the [Mozilla WebThings gateway](https://iot.mozilla.org).
+Flic button adapter for [WebThings Gateway](https://github.com/WebThingsIO/gateway).
 
 Bridges the flic daemon to the gateway so it can interact with Flic buttons.
 
